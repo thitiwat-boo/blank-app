@@ -2,6 +2,7 @@ import streamlit as st
 import google.generativeai as genai
 import json
 import pandas as pd
+import io
 from datetime import datetime
 
 # --- ตั้งค่าหน้าเว็บ ---
@@ -34,20 +35,32 @@ if api_key:
                     2. ในช่อง 'tax_id' ให้ใช้เลขประจำตัวผู้เสียภาษีของ "ผู้ขาย" เท่านั้น
                     3. ในช่อง 'branch' ให้ใช้สาขาของ "ผู้ขาย" เช่น HEAD OFFICE หรือ 00001
                     """
-                    #prompt = "สกัดข้อมูลใบกำกับภาษีทุกใบใน PDF นี้เป็น JSON List: [{date, no, name, tax_id, branch, amount, vat, total}]"
-                    #response = model.generate_content([prompt, pdf_data])
-                    # แก้ไขท่อนเรียก model ให้บังคับพ่นออกมาเป็น JSON เสมอ
-                    response = model.generate_content([prompt, pdf_data],generation_config={"response_mime_type": "application/json"})
+                    
+                    response = model.generate_content([prompt, pdf_data], generation_config={"response_mime_type": "application/json"})
                     data_list = json.loads(response.text.replace('```json', '').replace('```', '').strip())
                     if isinstance(data_list, dict): data_list = [data_list]
                     
                     df = pd.DataFrame(data_list)
                     st.success(f"✅ วิเคราะห์เสร็จสิ้น! พบทั้งหมด {len(df)} รายการ")
-                    st.dataframe(df) # แสดงตาราง
+                    st.dataframe(df) # แสดงตารางบนหน้าเว็บ
                     
-                    # ปุ่มดาวน์โหลด Excel
-                    csv = df.to_csv(index=False).encode('utf-8-sig')
-                    st.download_button("📥 ดาวน์โหลดเป็นไฟล์ CSV (สำหรับเปิดใน Excel/Google Sheet)", csv, "tax_report.csv", "text/csv")
+                    # 1. ฟังก์ชันสร้างไฟล์ Excel
+                    def to_excel(df_data):
+                        output = io.BytesIO()
+                        with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                            df_data.to_excel(writer, index=False, sheet_name='Tax_Report')
+                        return output.getvalue()
+                    
+                    # 2. แปลงข้อมูลใน DataFrame ให้เป็นไฟล์ Excel
+                    excel_data = to_excel(df)
+                    
+                    # 3. ปุ่มดาวน์โหลด .xlsx
+                    st.download_button(
+                        label="📥 ดาวน์โหลดเป็นไฟล์ Excel (.xlsx)",
+                        data=excel_data,
+                        file_name=f"Manus_Tax_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                    )
                     
                 except Exception as e:
                     st.error(f"❌ เกิดข้อผิดพลาด: {str(e)}")
