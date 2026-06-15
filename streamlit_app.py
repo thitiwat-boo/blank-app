@@ -29,11 +29,12 @@ if api_key:
                 try:
                     pdf_bytes = uploaded_file.read()
                     pdf_data = {'mime_type': 'application/pdf', 'data': pdf_bytes}
-                    prompt = """สกัดข้อมูลใบกำกับภาษีทุกใบใน PDF นี้เป็น JSON List: [{date, no, name, tax_id, branch, amount, vat, total}]
+                    prompt = """สกัดข้อมูลใบกำกับภาษีทุกใบใน PDF นี้เป็น JSON List: [{date, no, name, tax_id, branch, amount, vat, total, remark}]
                     ข้อบังคับสำคัญ:
                     1. ในช่อง 'name' ให้ใช้ชื่อ "ผู้ขาย" (Vendor / Seller / ร้านค้าที่ออกใบกำกับภาษี) เท่านั้น ห้ามเอาชื่อผู้ซื้อหรือตัวเรามาใส่
                     2. ในช่อง 'tax_id' ให้ใช้เลขประจำตัวผู้เสียภาษีของ "ผู้ขาย" เท่านั้น
                     3. ในช่อง 'branch' ให้ใช้สาขาของ "ผู้ขาย" เช่น HEAD OFFICE หรือ 00001
+                    4. ในช่อง 'remark' ให้ใช้ข้อความหรือหมายเลขใดๆ ที่มีการเขียนเพิ่มเติมด้วยดินสอหรือลายมือไว้บนบริเวณหัวกระดาษ (เช่น เลขอ้างอิงภายใน เลข PU หรือเลขเอกสารอื่นๆ) หากไม่มีการเขียนเพิ่มเติมใดๆ ให้ใส่เป็นค่าว่าง
                     """
                     
                     response = model.generate_content([prompt, pdf_data], generation_config={"response_mime_type": "application/json"})
