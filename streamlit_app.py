@@ -6,13 +6,13 @@ import io
 from datetime import datetime
 
 # --- ตั้งค่าหน้าเว็บ ---
-st.set_page_config(page_title="Manus Tax Extractor", page_icon="🧾")
-st.title("🧾 Manus Tax PDF Extractor")
+st.set_page_config(page_title="Tax Invoice Extractor", page_icon="🧾")
+st.title("🧾 Tax Invoice PDF Extractor")
 st.markdown("ระบบสกัดข้อมูลใบกำกับภาษีชุดใหญ่ (รองรับ 50+ หน้า)")
 
 # --- แถบข้าง (Sidebar) ---
 with st.sidebar:
-    st.header("⚙️ การตั้งค่า")
+    st.header("🔑 เปิดใช้งานระบบ (API Key)")
     api_key = st.text_input("ใส่ Gemini API Key ตรงนี้", type="password")
     st.info("หากยังไม่มี API Key ให้ไปขอได้ที่: [aistudio.google.com](https://aistudio.google.com)")
 
