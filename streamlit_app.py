@@ -25,7 +25,7 @@ if api_key:
 
     if uploaded_file is not None:
         if st.button("🚀 เริ่มประมวลผลด่วน"):
-            with st.spinner("🧠 Manus กำลังวิเคราะห์ข้อมูล..."):
+            with st.spinner("🧠 กำลังวิเคราะห์ข้อมูล..."):
                 try:
                     pdf_bytes = uploaded_file.read()
                     pdf_data = {'mime_type': 'application/pdf', 'data': pdf_bytes}
