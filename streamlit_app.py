@@ -72,7 +72,7 @@ with st.sidebar:
         with st.spinner("🔍 AI กำลังสืบค้นข้อมูลบริษัทจากเลข 13 หลัก..."):
             try:
                 # สั่งให้ Gemini ค้นหาข้อมูลบริษัทบนอินเทอร์เน็ต
-                search_model = genai.GenerativeModel("gemini-1.5-flash")
+                search_model = genai.GenerativeModel("gemini-2.5-flash")
                 search_prompt = f"""
                 จงสืบค้นข้อมูลอินเทอร์เน็ตและระบุข้อมูลของเลขทะเบียนนิติบุคคลไทย: {tax_id}
                 ตอบกลับเป็นรูปแบบ JSON เท่านั้น ห้ามมีคำอธิบายอื่น โครงสร้างดังนี้:
@@ -196,7 +196,7 @@ if pdf_file is not None:
                 """
                 
                 # เรียกใช้งานโมเดล Gemini 1.5 Flash
-                model = genai.GenerativeModel("gemini-1.5-flash")
+                model = genai.GenerativeModel("gemini-2.5-flash")
                 status.write("🧠 กำลังส่งข้อมูลให้ AI วิเคราะห์โครงสร้างบัญชีและภาษี...")
                 response = model.generate_content([pdf_part, prompt])
                 
