@@ -71,9 +71,9 @@ with st.sidebar:
         
         with st.spinner("🔍 AI กำลังสืบค้นข้อมูลบริษัทจากเลข 13 หลัก..."):
             try:
-                # สั่งให้ Gemini ค้นหาข้อมูลบริษัทบนอินเทอร์เน็ต
+                # สั่งให้ Antigravity ค้นหาข้อมูลบริษัทบนอินเทอร์เน็ต
                 search_model = genai.GenerativeModel(
-                    model_name="gemini-3.5-flash"
+                    model_name="Antigravity"
                 )                    
 
                 search_prompt = f"""
