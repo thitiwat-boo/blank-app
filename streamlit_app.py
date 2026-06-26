@@ -5,118 +5,184 @@ import pandas as pd
 import io
 from datetime import datetime
 
-# --- ตั้งค่าหน้าเว็บ ---
-st.set_page_config(page_title="Universal PDF to Excel Converter", page_icon="📊")
-st.title("📊 Universal PDF to Excel Extractor")
-st.markdown("ระบบสกัดข้อมูลจาก PDF ทุกรูปแบบให้เป็นตาราง Excel ด้วย AI (Gemini Flash)")
+# --- 1. ตั้งค่าหน้าเว็บและดีไซน์ (UX/UI Custom CSS) ---
+st.set_page_config(
+    page_title="Smart AI Financial Extractor", 
+    page_icon="📊",
+    layout="wide"
+)
 
-# --- แถบข้าง (Sidebar) ---
+st.markdown("""
+    <style>
+    .main-title {
+        font-size: 2.5rem;
+        color: #1E3A8A;
+        font-weight: 700;
+        margin-bottom: 0.5rem;
+    }
+    .sub-title {
+        font-size: 1.1rem;
+        color: #4B5563;
+        margin-bottom: 2rem;
+    }
+    .stButton>button {
+        background-color: #2563EB;
+        color: white;
+        border-radius: 8px;
+        padding: 0.5rem 2rem;
+        font-weight: 600;
+        border: none;
+        transition: all 0.3s ease;
+    }
+    .stButton>button:hover {
+        background-color: #1D4ED8;
+        transform: translateY(-1px);
+    }
+    div[data-testid="stExpander"] {
+        border: 1px solid #E5E7EB;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+st.markdown('<div class="main-title">📊 Smart AI Financial Extractor</div>', unsafe_allow_html=True)
+st.markdown('<div class="sub-title">ระบบสกัดและวิเคราะห์ข้อมูลจาก PDF คู่กับผังบัญชีด้วย AI (Gemini Flash)</div>', unsafe_allow_html=True)
+
+# --- 2. แถบข้าง (Sidebar) สำหรับตั้งค่าระบบ ---
 with st.sidebar:
     st.header("🔑 เปิดใช้งานระบบ (API Key)")
     api_key = st.text_input("ใส่ Gemini API Key ของคุณเพื่อเปิดใช้งาน", type="password")
     st.info("หากยังไม่มี API Key ให้ไปขอได้ที่: [aistudio.google.com](https://aistudio.google.com)")
     
     st.write("---")
-    st.header("📂 ตั้งค่าการแปลงไฟล์")
-    # เพิ่มเมนูให้เลือกประเภทเอกสาร เพื่อเปลี่ยน Prompt ให้ตรงกับงาน
+    st.header("⚙️ ตั้งค่าประเภทเอกสาร")
     doc_type = st.selectbox(
-        "เลือกประเภทเอกสารใน PDF:",
-        ["ใบกำกับภาษี (Tax Invoice)", "Statement ธนาคาร (Bank Statement)", "เอกสารทั่วไป/ตารางทั่วไป (General Document)"]
+        "เลือกประเภทเอกสารใน PDF หลัก:",
+        ["ใบกำกับภาษี/ใบเสร็จรับเงิน (Tax Invoice/Receipt)", "Statement ธนาคาร (Bank Statement)", "เอกสารทั่วไป/ตารางทั่วไป (General Document)"]
     )
 
-# --- ส่วนประมวลผล ---
-if api_key:
-    genai.configure(api_key=api_key)
-    # แนะนำให้ใช้ gemini-1.5-flash สำหรับงานอ่านเอกสารและได้ความเร็วสูง
-    model = genai.GenerativeModel('gemini-flash-latest')
-    
-    uploaded_file = st.file_uploader("เลือกไฟล์ PDF ที่ต้องการแปลง", type="pdf")
+# ตรวจสอบการกรอก API Key ก่อนเริ่มทำงาน
+if not api_key:
+    st.warning("⚠️ กรุณาใส่ Gemini API Key ที่แถบซ้ายมือเพื่อเริ่มต้นใช้งานครับ")
+    st.stop()
 
-    if uploaded_file is not None:
-        if st.button("🚀 เริ่มประมวลผล"):
-            with st.spinner("🧠 AI กำลังอ่านและแปลงข้อมูลใน PDF... (อาจใช้เวลาสักครู่ตามจำนวนหน้า)"):
-                try:
-                    pdf_bytes = uploaded_file.read()
-                    pdf_data = {'mime_type': 'application/pdf', 'data': pdf_bytes}
-                    
-                    # --- เลือก Prompt และ โครงสร้าง JSON ตามประเภทเอกสาร ---
-                    if doc_type == "ใบกำกับภาษี (Tax Invoice)":
-                        prompt = """สกัดข้อมูลใบกำกับภาษีทุกใบใน PDF นี้เป็น JSON List: [{date, no, name, tax_id, branch, amount, vat, total, remark}]
-                        ข้อบังคับสำคัญ:
-                        1. ในช่อง 'name' ให้ใช้ชื่อ "ผู้ขาย" (Vendor / Seller) เท่านั้น ห้ามเอาชื่อผู้ซื้อหรือตัวเรามาใส่
-                        2. ในช่อง 'tax_id' ให้ใช้เลขประจำตัวผู้เสียภาษีของ "ผู้ขาย" เท่านั้น
-                        3. ในช่อง 'branch' ให้ใช้สาขาของ "ผู้ขาย" เช่น HEAD OFFICE หรือ 00001
-                        4. ในช่อง 'remark' ให้ใช้ข้อความหรือหมายเลขที่เขียนเพิ่มเติมด้วยลายมือบนหัวกระดาษ (ถ้ามี) ถ้าไม่มีให้เป็นค่าว่าง
-                        """
-                    
-                    elif doc_type == "Statement ธนาคาร (Bank Statement)":
-                        prompt = """สกัดข้อมูลรายการเดินบัญชี (Transaction History) ทั้งหมดใน PDF Statement นี้ ออกมาเป็น JSON List ของออบเจกต์ที่มีโครงสร้างดังนี้:
-                        [{date, time, description, withdraw, deposit, balance, channel}]
-                        
-                        ข้อบังคับสำคัญ:
-                        1. 'date': วันที่เกิดรายการ (พยายามปรับให้อยู่ในฟอร์แมต DD/MM/YYYY หรือตามที่ปรากฏในเอกสาร)
-                        2. 'time': เวลาที่เกิดรายการ (ถ้ามี ถ้าไม่มีให้ใส่ค่าว่าง)
-                        3. 'description': รายละเอียดรายการ หรือโค้ดธุรกรรม (เช่น TRANSFER, ATM, นาย A โอนเงิน)
-                        4. 'withdraw': จำนวนเงินที่ถอน/โอนออก (ต้องเป็นตัวเลขเงิน หรือใส่ 0 หรือค่าว่างถ้าไม่มีรายการถอน)
-                        5. 'deposit': จำนวนเงินที่ฝาก/โอนเข้า (ต้องเป็นตัวเลขเงิน หรือใส่ 0 หรือค่าว่างถ้าไม่มีรายการฝาก)
-                        6. 'balance': ยอดเงินคงเหลือ ณ รายการนั้นๆ
-                        7. 'channel': ช่องทาง เช่น Mobile Banking, ATM (ถ้ามี)
-                        * ดึงข้อมูลมาให้ครบทุกแถว ทุกหน้า ห้ามข้ามรายการแม้แต่รายการเดียว *
-                        """
-                    
-                    else: # เอกสารทั่วไป / ตารางทั่วไป
-                        prompt = """วิเคราะห์และแปลงข้อมูลตารางหรือเนื้อหาหลักในเอกสาร PDF นี้ให้ออกมาเป็น JSON List (Array of Objects) 
-                        โดยให้คุณวิเคราะห์เองว่า Column ที่เหมาะสมสำหรับข้อมูลชุดนี้ควรมีอะไรบ้าง เพื่อให้นำไปทำเป็นตาราง Excel ได้สวยงามและสมบูรณ์ที่สุด
-                        
-                        ข้อบังคับสำคัญ:
-                        1. ห้ามสรุปข้อมูลย่อ ให้สกัดข้อมูลรายละเอียดรายบรรทัด/รายข้อมาให้ครบถ้วน
-                        2. ตั้งชื่อ Key ของ JSON ให้เป็นภาษาอังกฤษที่สื่อความหมาย (เช่น item, qty, price, total, status, name)
-                        """
-                    
-                    # สั่งงาน Gemini โดยบังคับ Output เป็น JSON
-                    response = model.generate_content(
-                        [prompt, pdf_data], 
-                        generation_config={"response_mime_type": "application/json"}
-                    )
-                    
-                    # แปลงข้อความ JSON เป็น Python List
-                    data_list = json.loads(response.text.strip())
-                    if isinstance(data_list, dict): 
-                        # ถ้า AI คืนค่ามาเป็น Object ชั้นเดียว (เช่น มี key ซ้อนอยู่ข้างใน) พยายามดึงตัวที่เป็น List ออกมา
-                        for key, value in data_list.items():
-                            if isinstance(value, list):
-                                data_list = value
-                                break
-                        if isinstance(data_list, dict):
-                            data_list = [data_list]
-                    
-                    # แปลงเป็น DataFrame
-                    df = pd.DataFrame(data_list)
-                    
-                    st.success(f"✅ แปลงข้อมูลสำเร็จ! พบทั้งหมด {len(df)} แถว")
-                    st.dataframe(df) # แสดงตารางบนหน้าเว็บ ให้ยูสเซอร์ตรวจทาน
-                    
-                    # ฟังก์ชันสร้างไฟล์ Excel
-                    def to_excel(df_data):
-                        output = io.BytesIO()
-                        # ใช้ openpyxl ในการเขียนไฟล์
-                        with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                            df_data.to_excel(writer, index=False, sheet_name='Data_Report')
-                        return output.getvalue()
-                    
-                    excel_data = to_excel(df)
-                    
-                    # ปุ่มดาวน์โหลด .xlsx
-                    file_prefix = "Statement" if "Statement" in doc_type else "Data" if "ทั่วไป" in doc_type else "Tax"
-                    st.download_button(
-                        label="📥 ดาวน์โหลดเป็นไฟล์ Excel (.xlsx)",
-                        data=excel_data,
-                        file_name=f"Manus_{file_prefix}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-                    )
-                    
-                except Exception as e:
-                    st.error(f"❌ เกิดข้อผิดพลาดในการประมวลผล: {str(e)}")
-                    st.info("คำแนะนำ: หากไฟล์มีจำนวนหน้ามากเกินไป (เช่น เกิน 30-40 หน้าในคำสั่งเดียว) ลองแบ่งย่อยไฟล์แล้วอัปโหลดทีละส่วนครับ")
-else:
-    st.warning("👈 กรุณาใส่ API Key ที่แถบด้านซ้ายก่อนเพื่อเปิดใช้งานระบบ")
+# กำหนดค่าให้ระบบ AI
+genai.configure(api_key=api_key)
+
+# --- 3. ส่วนอัปโหลดไฟล์ (Main UI) ---
+col1, col2 = st.columns(2)
+
+with col1:
+    st.subheader("📄 1. เอกสารหลักที่ต้องการให้อ่าน")
+    pdf_file = st.file_uploader("อัปโหลดไฟล์ PDF (Statement / Invoice / Receipt)", type=["pdf"])
+
+with col2:
+    st.subheader("📂 2. ผังบัญชีของบริษัท (ตัวเลือกเสริม)")
+    coa_file = st.file_uploader("อัปโหลดผังบัญชีเพื่อบันทึกโค้ดอัตโนมัติ (Excel)", type=["xlsx", "xls"])
+
+# --- 4. ประมวลผลผังบัญชี ---
+coa_context = "ไม่มีการอัปโหลดผังบัญชีมา ให้วิเคราะห์ชื่อบัญชีที่เหมาะสมตามมาตรฐานสากล"
+if coa_file is not None:
+    try:
+        df_coa = pd.read_excel(coa_file)
+        with st.expander("🔍 ตรวจสอบข้อมูลผังบัญชีที่อัปโหลด", expanded=False):
+            st.dataframe(df_coa, use_container_width=True)
+        # แปลงข้อมูลผังบัญชีเป็น String เพื่อส่งให้ AI
+        coa_context = df_coa.to_string(index=False)
+    except Exception as e:
+        st.error(f"❌ ไม่สามารถอ่านไฟล์ผังบัญชีได้: {e}")
+
+# --- 5. เริ่มทำการแปลงและวิเคราะห์ข้อมูล ---
+if pdf_file is not None:
+    st.write("---")
+    if st.button("🚀 เริ่มวิเคราะห์และแปลงข้อมูลเป็น Excel"):
+        with st.status("⏳ AI กำลังอ่านและวิเคราะห์เอกสารอย่างละเอียด...", expanded=True) as status:
+            try:
+                # เตรียมข้อมูลไฟล์ PDF สำหรับส่งให้ Gemini API
+                pdf_data = pdf_file.read()
+                pdf_part = {
+                    "mime_type": "application/pdf",
+                    "data": pdf_data
+                }
+                
+                # ออกแบบ Prompt แบบละเอียดรองรับความต้องการด้านบัญชีภาษี
+                prompt = f"""
+                คุณคือผู้เชี่ยวชาญด้านบัญชีและการเงินของไทย 
+                หน้าที่ของคุณคืออ่านเอกสาร PDF ที่แนบมานี้ (ประเภท: {doc_type}) และทำการวิเคราะห์จับคู่กับผังบัญชีที่กำหนดให้อย่างถูกต้อง
+
+                [ข้อมูลผังบัญชีของบริษัท]
+                {coa_context}
+
+                จงดึงข้อมูลทุกรายการ (Transactions) ออกมา และวิเคราะห์เพิ่มเติมในหัวข้อต่อไปนี้:
+                1. วันที่ (Date) - แปลงเป็นรูปแบบ YYYY-MM-DD
+                2. รายละเอียดรายการ (Description)
+                3. จำนวนเงิน (Amount) - ตัวเลขสุทธิรวม
+                4. ประเภททางบัญชี (Account Type) - ระบุว่าเป็น 'รายได้' หรือ 'ค่าใช้จ่าย' หรือ 'สินทรัพย์' หรือ 'หนี้สิน'
+                5. ชื่อบัญชีและรหัสบัญชี (Account Code & Name) - เลือกโค้ดและชื่อที่ตรงที่สุดจาก [ข้อมูลผังบัญชีของบริษัท] ถ้าไม่มีให้แนะนำบัญชีที่ใกล้เคียงที่สุด
+                6. ประเภทภาษีมูลค่าเพิ่ม (VAT Type) - วิเคราะห์เนื้อหารายการว่าเป็น 'VAT 7%', 'VAT 0%' หรือ 'ยกเว้น VAT'
+                7. ประเภทหัก ณ ที่จ่าย (WHT Type) - วิเคราะห์ลักษณะรายการเพื่อระบุการทำ หัก ณ ที่จ่าย (เช่น ค่าบริการ 3%, ค่าขนส่ง 1%, ค่าเช่า 5%, ค่าโฆษณา 2%, หรือระบุ 'ไม่มี' หากไม่เข้าข่าย)
+
+                สำคัญมาก: จงตอบกลับเฉพาะข้อมูลในรูปแบบ JSON Array เท่านั้น ห้ามเขียนคำอธิบายขึ้นต้นหรือลงท้าย โดยโครงสร้างเป็นดังนี้:
+                [
+                  {{
+                    "date": "YYYY-MM-DD",
+                    "description": "...",
+                    "amount": 0.0,
+                    "account_type": "...",
+                    "account_code_name": "...",
+                    "vat_type": "...",
+                    "wht_type": "..."
+                  }}
+                ]
+                """
+                
+                # เรียกใช้งานโมเดล Gemini 1.5 Flash
+                model = genai.GenerativeModel("gemini-1.5-flash")
+                status.write("🧠 กำลังส่งข้อมูลให้ AI วิเคราะห์โครงสร้างบัญชีและภาษี...")
+                response = model.generate_content([pdf_part, prompt])
+                
+                # ทำความสะอาดผลลัพธ์ JSON จาก AI
+                result_text = response.text.strip()
+                if result_text.startswith("```json"):
+                    result_text = result_text.split("```json")[1].split("```")[0].strip()
+                elif result_text.startswith("```"):
+                    result_text = result_text.split("```")[1].split("```")[0].strip()
+                
+                # แปลง JSON เป็น DataFrame
+                data_list = json.loads(result_text)
+                df_result = pd.DataFrame(data_list)
+                
+                # ปรับหัวตารางให้สวยงามอ่านง่าย
+                df_result.columns = [
+                    "วันที่", "รายละเอียดรายการ", "จำนวนเงิน", 
+                    "ประเภททางบัญชี", "รหัสและชื่อบัญชี", "ประเภท VAT", "หัก ณ ที่จ่าย (WHT)"
+                ]
+                
+                status.update(label="✨ วิเคราะห์ข้อมูลสำเร็จ!", state="complete", expanded=False)
+                
+                # --- 6. แสดงผลลัพธ์บน UI ---
+                st.subheader("📊 ผลลัพธ์การวิเคราะห์จาก AI")
+                st.dataframe(df_result, use_container_width=True)
+                
+                # ทำปุ่มดาวน์โหลดไฟล์ Excel (Sheet เดียวจบตามเงื่อนไข)
+                buffer = io.BytesIO()
+                with pd.ExcelWriter(buffer, engine='xlsxwriter') as writer:
+                    df_result.to_excel(writer, index=False, sheet_name='Financial_Analysis')
+                
+                st.write("---")
+                st.download_button(
+                    label="📥 ดาวน์โหลดไฟล์ Excel ผลการวิเคราะห์",
+                    data=buffer.getvalue(),
+                    file_name=f"financial_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx",
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                )
+                
+            except json.JSONDecodeError:
+                status.update(label="❌ AI ตอบกลับรูปแบบข้อมูลไม่ถูกต้อง", state="error")
+                st.error("ไม่สามารถแปลงข้อมูลเป็นตารางได้เนื่องจากโครงสร้างข้อมูลผิดพลาด ลองกดใหม่อีกครั้งครับ")
+                with st.expander("ดูผลลัพธ์ดิบจาก AI"):
+                    st.code(response.text)
+            except Exception as e:
+                status.update(label="❌ เกิดข้อผิดพลาดในระบบ", state="error")
+                st.error(f"เกิดข้อผิดพลาด: {e}")
