@@ -73,7 +73,7 @@ with st.sidebar:
             try:
                 # สั่งให้ Gemini ค้นหาข้อมูลบริษัทบนอินเทอร์เน็ต
                 search_model = genai.GenerativeModel(
-                    model_name="gemini-2.5-flash"
+                    model_name="gemini-3.5-flash"
                 )                    
 
                 search_prompt = f"""
@@ -199,7 +199,7 @@ if pdf_file is not None:
                 ]
                 """
                 
-                # เรียกใช้งานโมเดล Gemini 1.5 Flash
+                # เรียกใช้งานโมเดล Gemini 2.5 Flash
                 model = genai.GenerativeModel("gemini-2.5-flash")
                 status.write("🧠 กำลังส่งข้อมูลให้ AI วิเคราะห์โครงสร้างบัญชีและภาษี...")
                 response = model.generate_content([pdf_part, prompt])
