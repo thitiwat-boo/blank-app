@@ -61,56 +61,56 @@ with st.sidebar:
     # ช่องกรอกเลข 13 หลัก
     tax_id = st.text_input("กรอกเลขทะเบียนนิติบุคคล 13 หลัก:", max_chars=13, placeholder="เช่น 01055XXXXXXXX")
     
-    # ตัวแปรสำหรับเก็บข้อมูลบริษัทที่จะส่งให้ AI อ่าน PDF
-    company_name = ""
-    business_type = ""
+    # เปิดช่องให้ทุกคนพิมพ์ชื่อบริษัทและประเภทธุรกิจเองได้อย่างอิสระ ถูกต้องตรงเป๊ะแน่นอน
+    company_name = st.text_input("ชื่อบริษัทที่ต้องการทำบัญชี:", placeholder="กรุณาพิมพ์ชื่อบริษัท เช่น บริษัท XXXXXXXX จำกัด")
+    business_type = st.text_area("ลักษณะธุรกิจ:", placeholder="เช่น ผลิตและจำหน่ายเบเกอรี่, คาเฟ่, บริการไอที")
     
     # ทำงานอัตโนมัติเมื่อกรอกครบ 13 หลัก และมี API Key แล้ว
-    if len(tax_id) == 13 and api_key:
-        genai.configure(api_key=api_key)
-        
-        with st.spinner("🔍 AI กำลังสืบค้นข้อมูลบริษัทจากเลข 13 หลัก..."):
-            try:
-                # สั่งให้ Antigravity ค้นหาข้อมูลบริษัทบนอินเทอร์เน็ต
-                search_model = genai.GenerativeModel(
-                    model_name="Antigravity"
-                )                    
+    #if len(tax_id) == 13 and api_key:
+    #    genai.configure(api_key=api_key)
+    #    
+    #    with st.spinner("🔍 AI กำลังสืบค้นข้อมูลบริษัทจากเลข 13 หลัก..."):
+    #        try:
+    #            # สั่งให้ Gemini ค้นหาข้อมูลบริษัทบนอินเทอร์เน็ต
+    #            search_model = genai.GenerativeModel(
+    #                model_name="gemini 2.5 flash"
+    #            )                    
 
-                search_prompt = f"""
-                คุณคือผู้ช่วยอัจฉริยะ จงบอกชื่อบริษัทหรือห้างหุ้นส่วนของไทยที่ตรงกับเลขทะเบียนนิติบุคคล 13 หลักนี้: {tax_id} 
-                พร้อมสรุปสั้นๆ ว่าเขาทำธุรกิจเกี่ยวกับอะไร
+    #            search_prompt = f"""
+    #            คุณคือผู้ช่วยอัจฉริยะ จงบอกชื่อบริษัทหรือห้างหุ้นส่วนของไทยที่ตรงกับเลขทะเบียนนิติบุคคล 13 หลักนี้: {tax_id} 
+    #            พร้อมสรุปสั้นๆ ว่าเขาทำธุรกิจเกี่ยวกับอะไร
+    #            
+    #            ตอบกลับเป็นรูปแบบ JSON โครงสร้างดังนี้เท่านั้น ห้ามมีข้อความอื่น:
+    #            {{
+    #              "company_name": "ชื่อบริษัท",
+    #              "business_type": "ประเภทธุรกิจ"
+    #            }}
+    #            """
                 
-                ตอบกลับเป็นรูปแบบ JSON โครงสร้างดังนี้เท่านั้น ห้ามมีข้อความอื่น:
-                {{
-                  "company_name": "ชื่อบริษัท",
-                  "business_type": "ประเภทธุรกิจ"
-                }}
-                """
+    #            search_response = search_model.generate_content(search_prompt)
+    #            search_text = search_response.text.strip()
                 
-                search_response = search_model.generate_content(search_prompt)
-                search_text = search_response.text.strip()
+    #            # Clean JSON format
+    #            if search_text.startswith("```json"):
+    #                search_text = search_text.split("```json")[1].split("```")[0].strip()
+    #            elif search_text.startswith("```"):
+    #                search_text = search_text.split("```")[1].split("```")[0].strip()
                 
-                # Clean JSON format
-                if search_text.startswith("```json"):
-                    search_text = search_text.split("```json")[1].split("```")[0].strip()
-                elif search_text.startswith("```"):
-                    search_text = search_text.split("```")[1].split("```")[0].strip()
+    #            info = json.loads(search_text)
+    #            company_name = info.get("company_name", "")
+    #            business_type = info.get("business_type", "")
                 
-                info = json.loads(search_text)
-                company_name = info.get("company_name", "")
-                business_type = info.get("business_type", "")
-                
-                if company_name:
-                    st.success("✅ ดึงข้อมูลบริษัทสำเร็จ!")
-                else:
-                    st.warning("❓ ไม่พบข้อมูลบริษัทจากเลขนี้ในระบบภายนอก")
+    #            if company_name:
+    #                st.success("✅ ดึงข้อมูลบริษัทสำเร็จ!")
+    #            else:
+    #                st.warning("❓ ไม่พบข้อมูลบริษัทจากเลขนี้ในระบบภายนอก")
                     
-            except Exception as e:
-                st.error(f"⚠️ ไม่สามารถสืบค้นข้อมูลได้อัตโนมัติ: {e}")
+    #        except Exception as e:
+    #            st.error(f"⚠️ ไม่สามารถสืบค้นข้อมูลได้อัตโนมัติ: {e}")
     
     # แสดงผลข้อมูลที่ค้นหาได้ในหน้า UI (หรือให้ผู้ใช้กรอกเองถ้า AI หาไม่เจอ)
-    company_name = st.text_input("ชื่อบริษัทที่ตรวจพบ:", value=company_name)
-    business_type = st.text_area("ลักษณะธุรกิจ:", value=business_type, placeholder="เช่น บริการซอฟต์แวร์, คาเฟ่")
+    #company_name = st.text_input("ชื่อบริษัทที่ตรวจพบ:", value=company_name)
+    #business_type = st.text_area("ลักษณะธุรกิจ:", value=business_type, placeholder="เช่น บริการซอฟต์แวร์, คาเฟ่")
     
     st.write("---")
     st.header("⚙️ ตั้งค่าประเภทเอกสาร")
