@@ -121,6 +121,7 @@ with st.sidebar:
             "Statement ธนาคาร (Bank Statement)", 
             "สลิปโอนเงิน (Transfer Slip)", 
             "เอกสารทั่วไป/ตารางทั่วไป (General Document)"
+            "อ่านเอกสารที่เป็น PDF แล้วแปลงเป็นตาราง Excel เช่น รายงานภาษีขาย และรายงานภาษีซื้อ"
         ]
     )
 
